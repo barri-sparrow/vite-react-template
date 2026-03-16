@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google 搜索词采集任务 — 原型图</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 13px;
+      background: #f0f2f5;
+      color: #333;
+    }
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .page-header {
+      background: #1890ff;
+      color: #fff;
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: .5px;
+    }
+    .page-header span { opacity: .7; font-size: 12px; font-weight: 400; margin-left: 10px; }
+    .container { padding: 16px 20px; }
+    /* ── Card ─────────────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    /* ── Filter Bar ───────────────────────────────────────────── */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+    .filter-item { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+    .filter-item label { font-size: 12px; color: #666; }
+    .filter-item input, .filter-item select {
+      height: 30px; padding: 0 8px; border: 1px solid #d9d9d9;
+      border-radius: 4px; font-size: 12px; outline: none;
+      transition: border-color .2s;
+    }
+    .filter-item input:focus, .filter-item select:focus { border-color: #40a9ff; }
+    .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
+    /* ── Buttons ──────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 30px; padding: 0 14px; border: none; border-radius: 4px;
+      font-size: 12px; cursor: pointer; white-space: nowrap;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:active { opacity: .7; }
+    .btn-primary   { background: #1890ff; color: #fff; }
+    .btn-default   { background: #fff; color: #333; border: 1px solid #d9d9d9; }
+    .btn-danger    { background: #ff4d4f; color: #fff; }
+    .btn-success   { background: #52c41a; color: #fff; }
+    .btn-warning   { background: #fa8c16; color: #fff; }
+    .btn-link      { background: transparent; color: #1890ff; padding: 0 4px; height: auto; }
+    .btn-link.danger { color: #ff4d4f; }
+    .btn:disabled  { opacity: .4; cursor: not-allowed; }
+    /* ── Toolbar ──────────────────────────────────────────────── */
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    .toolbar-right { margin-left: auto; display: flex; gap: 8px; }
+    /* ── Table ────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #fafafa; }
+    th, td {
+      padding: 9px 10px; text-align: left;
+      border-bottom: 1px solid #f0f0f0; white-space: nowrap;
+    }
+    th { font-weight: 600; font-size: 12px; color: #555; }
+    tbody tr:hover { background: #f5f7fa; }
+    tbody tr.selected { background: #e6f7ff; }
+    .status-badge {
+      display: inline-block; padding: 1px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 500;
+    }
+    .status-done    { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+    .status-pending { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
+    .status-running { background: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; }
+    .pager { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: #666; }
+    .pager-info { margin-right: auto; }
+    /* ── Modal overlay ────────────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 1000;
+      justify-content: center; align-items: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 8px; width: 520px; max-width: 95vw;
+      box-shadow: 0 8px 32px rgba(0,0,0,.18); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .modal.wide { width: 680px; }
+    .modal-header {
+      padding: 14px 20px; font-size: 15px; font-weight: 600;
+      border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-close { cursor: pointer; font-size: 18px; color: #999; line-height: 1; }
+    .modal-close:hover { color: #333; }
+    .modal-body { padding: 20px; flex: 1; overflow-y: auto; max-height: 70vh; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 8px; }
+    /* ── Form ─────────────────────────────────────────────────── */
+    .form-row { display: flex; gap: 16px; margin-bottom: 14px; }
+    .form-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 12px; color: #555; font-weight: 500; }
+    .form-group label .req { color: #ff4d4f; margin-left: 2px; }
+    .form-group input, .form-group textarea {
+      height: 32px; padding: 0 10px; border: 1px solid #d9d9d9;
+      border-radius: 4px; font-size: 13px; outline: none; transition: border-color .2s;
+      font-family: inherit;
+    }
+    .form-group textarea { height: 64px; padding: 6px 10px; resize: vertical; }
+    .form-group input:focus, .form-group textarea:focus { border-color: #40a9ff; }
+    .form-group input.readonly, .form-group input[readonly] {
+      background: #f5f5f5; color: #888; cursor: default;
+    }
+    .form-group .hint { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .form-group .error-msg { font-size: 11px; color: #ff4d4f; margin-top: 2px; display: none; }
+    .form-group.has-error input, .form-group.has-error textarea { border-color: #ff4d4f; }
+    .form-group.has-error .error-msg { display: block; }
+    /* ── Import UI ────────────────────────────────────────────── */
+    .import-drop-zone {
+      border: 2px dashed #d9d9d9; border-radius: 6px; padding: 28px;
+      text-align: center; cursor: pointer; color: #aaa;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .import-drop-zone:hover, .import-drop-zone.drag-over {
+      border-color: #1890ff; background: #e6f7ff; color: #1890ff;
+    }
+    .import-drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .import-drop-zone .icon { font-size: 32px; display: block; margin-bottom: 6px; }
+    .import-tip { font-size: 11px; color: #aaa; margin-top: 8px; }
+    .import-results { margin-top: 14px; max-height: 200px; overflow-y: auto; font-size: 12px; }
+    .import-results .row-result { padding: 3px 0; border-bottom: 1px solid #f5f5f5; }
+    .import-results .ok { color: #52c41a; }
+    .import-results .fail { color: #ff4d4f; }
+    /* ── Confirm Modal ────────────────────────────────────────── */
+    .confirm-msg { font-size: 14px; text-align: center; padding: 10px 0; }
+    /* ── Scrollbar ────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+    /* ── No data placeholder ──────────────────────────────────── */
+    .no-data { text-align: center; padding: 32px; color: #bbb; font-size: 13px; }
+  </style>
+</head>
+<body>
+<!-- ══════════════════════ PAGE HEADER ══════════════════════ -->
+<div class="page-header">
+  Google 搜索词采集任务
+  <span>原型演示 · Prototype</span>
+</div>
+
+<div class="container">
+  <!-- ══ Filter Card ══ -->
+  <div class="card">
+    <div class="filter-bar" id="filterBar">
+      <div class="filter-item">
+        <label>编号（精准/批量，逗号分隔）</label>
+        <input type="text" id="f_id" placeholder="如 3389,3633" />
+      </div>
+      <div class="filter-item">
+        <label>搜索词（模糊/批量，逗号分隔）</label>
+        <input type="text" id="f_keyword" placeholder="如 skid,NB-H" />
+      </div>
+      <div class="filter-item">
+        <label>创建时间（开始）</label>
+        <input type="date" id="f_date_start" />
+      </div>
+      <div class="filter-item">
+        <label>创建时间（结束）</label>
+        <input type="date" id="f_date_end" />
+      </div>
+      <div class="filter-item">
+        <label>负责人（模糊/批量，逗号分隔）</label>
+        <input type="text" id="f_owner" placeholder="如 王艺,恽雨婷" />
+      </div>
+      <div class="filter-item">
+        <label>负责组（模糊/批量，逗号分隔）</label>
+        <input type="text" id="f_group" placeholder="如 运营二组" />
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="applyFilter()">🔍 查询</button>
+        <button class="btn btn-default" onclick="resetFilter()">↺ 重置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Main Table Card ══ -->
+  <div class="card">
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="openAddModal()">＋ 新增</button>
+      <button class="btn btn-default" id="btnEdit" onclick="openEditModal()" disabled>✏ 修改</button>
+      <button class="btn btn-danger"  id="btnDelete" onclick="openDeleteConfirm()" disabled>🗑 删除</button>
+      <button class="btn btn-warning" onclick="openImportModal()">📥 导入</button>
+      <div class="toolbar-right">
+        <button class="btn btn-success" onclick="doExport()">📤 导出</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="mainTable">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" id="checkAll" onchange="toggleCheckAll(this)" /></th>
+            <th>销售编号</th>
+            <th>搜索词 / OEM 号</th>
+            <th>核心词</th>
+            <th>负责人</th>
+            <th>负责组</th>
+            <th>创建时间</th>
+            <th>状态</th>
+            <th>状态更新日期</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div id="noData" class="no-data" style="display:none">暂无数据</div>
+    </div>
+
+    <div class="pager">
+      <span class="pager-info" id="pagerInfo">共 0 条</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ ADD / EDIT MODAL ══════════════════════ -->
+<div class="modal-overlay" id="formModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="formModalTitle">新增采集任务</span>
+      <span class="modal-close" onclick="closeModal('formModal')">✕</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group" id="fg_saleNo">
+          <label>销售编号 <span class="req">*</span></label>
+          <input type="text" id="inp_saleNo" placeholder="请输入销售编号" oninput="autoFill()" />
+          <span class="error-msg">输入不能为空</span>
+        </div>
+        <div class="form-group" id="fg_keyword">
+          <label>搜索词 / OEM 号 <span class="req">*</span></label>
+          <input type="text" id="inp_keyword" placeholder="请输入搜索词或 OEM 号" />
+          <span class="error-msg">输入不能为空</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" id="fg_coreWords">
+          <label>核心词 <span class="req">*</span></label>
+          <input type="text" id="inp_coreWords" placeholder="多个核心词用 / 分隔，至少一个" />
+          <span class="hint">示例：skid plate/52090270af</span>
+          <span class="error-msg" id="coreWordsErr">至少填写一个核心词，多个核心词分隔符为"/"</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>负责人</label>
+          <input type="text" id="inp_owner" readonly class="readonly" placeholder="系统自动带出" />
+        </div>
+        <div class="form-group">
+          <label>负责组</label>
+          <input type="text" id="inp_group" readonly class="readonly" placeholder="系统自动带出" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeModal('formModal')">取消</button>
+      <button class="btn btn-primary" onclick="submitForm()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ DELETE CONFIRM MODAL ══════════════════════ -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <span>删除确认</span>
+      <span class="modal-close" onclick="closeModal('deleteModal')">✕</span>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-msg">⚠️ 确定删除所选 <strong id="deleteCount">0</strong> 条记录吗？此操作不可撤销。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeModal('deleteModal')">取消</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">确定删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ IMPORT MODAL ══════════════════════ -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal wide">
+    <div class="modal-header">
+      <span>导入采集任务</span>
+      <span class="modal-close" onclick="closeModal('importModal')">✕</span>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:#666;margin-bottom:10px">
+        请将数据粘贴到下方文本框，或上传 <strong>.csv / .txt</strong> 文件。<br>
+        格式（每行一条，Tab 或逗号分隔）：<br>
+        <code style="font-size:11px;background:#f5f5f5;padding:2px 6px;border-radius:3px">销售编号 | 搜索词/OEM号 | 核心词 | 负责人 | 负责组</code>
+      </p>
+      <div style="margin-bottom:10px">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px">方式一：粘贴数据</label>
+        <textarea id="importText" style="width:100%;height:100px;border:1px solid #d9d9d9;border-radius:4px;padding:8px;font-size:12px;font-family:monospace;resize:vertical;outline:none"
+          placeholder="3389&#9;52090270AF&#9;skid plate/52090270af&#9;王艺&#9;运营二组&#10;3633&#9;NB-H-TAL-00&#9;Lower Grille/Bumper Grille&#9;恽雨婷&#9;运营二组"></textarea>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px">方式二：上传文件</label>
+        <div class="import-drop-zone" id="dropZone">
+          <span class="icon">📄</span>
+          点击选择或拖拽文件到此处上传
+          <input type="file" id="importFile" accept=".csv,.txt" onchange="handleFileUpload(this)" />
+        </div>
+        <p class="import-tip">支持 .csv / .txt，UTF-8 编码，Tab 或逗号分隔，首行可为表头（自动跳过）</p>
+      </div>
+      <div id="importResults" class="import-results"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeModal('importModal');clearImport()">取消</button>
+      <button class="btn btn-primary" onclick="doImport()">开始导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ SCRIPT ══════════════════════ -->
+<script>
+/* ── Sales number → owner/group mapping ─────────────────────── */
+const SALE_MAP = {
+  '3389': { owner: '王艺',   group: '运营二组' },
+  '3633': { owner: '恽雨婷', group: '运营二组' },
+  '1001': { owner: '张三',   group: '运营一组' },
+  '1002': { owner: '李四',   group: '运营一组' },
+  '2001': { owner: '王五',   group: '技术组'   },
+  '2002': { owner: '赵六',   group: '技术组'   },
+  '4001': { owner: '孙七',   group: '运营三组' },
+};
+
+/* ── Status display ─────────────────────────────────────────── */
+const STATUS_CLASS = {
+  '已完成': 'status-done',
+  '待采集': 'status-pending',
+  '采集中': 'status-running',
+};
+
+/* ── Sample data ────────────────────────────────────────────── */
+let dataStore = [
+  { id: 1, saleNo:'3389', keyword:'52090270AF',      coreWords:'skid plate/52090270af',    owner:'王艺',   group:'运营二组', createdAt:'2024-01-10', status:'已完成', statusDate:'2024-02-05' },
+  { id: 2, saleNo:'3633', keyword:'NB-H-TAL-00',     coreWords:'Lower Grille/Bumper Grille',owner:'恽雨婷',group:'运营二组', createdAt:'2024-01-12', status:'待采集', statusDate:'2024-01-12' },
+  { id: 3, saleNo:'1001', keyword:'BP4K-50-710A',     coreWords:'hood latch/hood release',  owner:'张三',   group:'运营一组', createdAt:'2024-01-15', status:'采集中', statusDate:'2024-01-20' },
+  { id: 4, saleNo:'1002', keyword:'51-12-7-201-908',  coreWords:'grille/front grille',       owner:'李四',   group:'运营一组', createdAt:'2024-01-18', status:'待采集', statusDate:'2024-01-18' },
+  { id: 5, saleNo:'2001', keyword:'55037371AA',        coreWords:'sway bar link',             owner:'王五',   group:'技术组',   createdAt:'2024-01-20', status:'已完成', statusDate:'2024-02-10' },
+  { id: 6, saleNo:'4001', keyword:'MR992474',          coreWords:'headlight/head lamp/headlamp',owner:'孙七',group:'运营三组',createdAt:'2024-01-22', status:'采集中', statusDate:'2024-01-30' },
+];
+
+let filteredData   = [...dataStore];
+let editingId      = null;   // null = add, number = edit
+let nextId         = 100;
+
+/* ── Render ─────────────────────────────────────────────────── */
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  const noData = document.getElementById('noData');
+
+  if (filteredData.length === 0) {
+    tbody.innerHTML = '';
+    noData.style.display = '';
+    document.getElementById('pagerInfo').textContent = '共 0 条';
+    syncToolbarState();
+    return;
+  }
+  noData.style.display = 'none';
+  document.getElementById('pagerInfo').textContent = `共 ${filteredData.length} 条`;
+  tbody.innerHTML = filteredData.map(row => `
+    <tr id="row_${row.id}" onclick="toggleRow(${row.id}, event)">
+      <td onclick="event.stopPropagation()">
+        <input type="checkbox" class="row-check" data-id="${row.id}"
+          onchange="onRowCheck(${row.id}, this)" />
+      </td>
+      <td>${esc(row.saleNo)}</td>
+      <td>${esc(row.keyword)}</td>
+      <td title="${esc(row.coreWords)}">${esc(truncate(row.coreWords, 30))}</td>
+      <td>${esc(row.owner)}</td>
+      <td>${esc(row.group)}</td>
+      <td>${esc(row.createdAt)}</td>
+      <td><span class="status-badge ${STATUS_CLASS[row.status] || ''}">${esc(row.status)}</span></td>
+      <td>${esc(row.statusDate)}</td>
+      <td>
+        <button class="btn btn-link" onclick="event.stopPropagation();openEditModalFor(${row.id})">修改</button>
+        <button class="btn btn-link danger" onclick="event.stopPropagation();openDeleteSingle(${row.id})">删除</button>
+      </td>
+    </tr>`).join('');
+  document.getElementById('checkAll').checked = false;
+  syncToolbarState();
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
+
+/* ── Row selection ──────────────────────────────────────────── */
+function toggleRow(id, e) {
+  const cb = document.querySelector(`.row-check[data-id="${id}"]`);
+  cb.checked = !cb.checked;
+  document.getElementById(`row_${id}`).classList.toggle('selected', cb.checked);
+  updateCheckAll();
+  syncToolbarState();
+}
+function onRowCheck(id, cb) {
+  document.getElementById(`row_${id}`).classList.toggle('selected', cb.checked);
+  updateCheckAll();
+  syncToolbarState();
+}
+function toggleCheckAll(cb) {
+  document.querySelectorAll('.row-check').forEach(c => {
+    c.checked = cb.checked;
+    document.getElementById(`row_${c.dataset.id}`).classList.toggle('selected', cb.checked);
+  });
+  syncToolbarState();
+}
+function updateCheckAll() {
+  const all = [...document.querySelectorAll('.row-check')];
+  document.getElementById('checkAll').checked = all.length > 0 && all.every(c => c.checked);
+}
+function getCheckedIds() {
+  return [...document.querySelectorAll('.row-check:checked')].map(c => +c.dataset.id);
+}
+function syncToolbarState() {
+  const cnt = getCheckedIds().length;
+  document.getElementById('btnEdit').disabled   = cnt !== 1;
+  document.getElementById('btnDelete').disabled = cnt === 0;
+}
+
+/* ── Filter ─────────────────────────────────────────────────── */
+function applyFilter() {
+  const ids      = tokenize(document.getElementById('f_id').value);
+  const kws      = tokenize(document.getElementById('f_keyword').value);
+  const ds       = document.getElementById('f_date_start').value;
+  const de       = document.getElementById('f_date_end').value;
+  const owners   = tokenize(document.getElementById('f_owner').value);
+  const groups   = tokenize(document.getElementById('f_group').value);
+
+  filteredData = dataStore.filter(r => {
+    if (ids.length && !ids.some(t => r.saleNo === t)) return false;
+    if (kws.length && !kws.some(t => r.keyword.toLowerCase().includes(t.toLowerCase()))) return false;
+    if (ds && r.createdAt < ds) return false;
+    if (de && r.createdAt > de) return false;
+    if (owners.length && !owners.some(t => r.owner.toLowerCase().includes(t.toLowerCase()))) return false;
+    if (groups.length && !groups.some(t => r.group.toLowerCase().includes(t.toLowerCase()))) return false;
+    return true;
+  });
+  renderTable();
+}
+
+function tokenize(s) {
+  return s.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean);
+}
+
+function resetFilter() {
+  ['f_id','f_keyword','f_date_start','f_date_end','f_owner','f_group'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  filteredData = [...dataStore];
+  renderTable();
+}
+
+/* ── Add Modal ──────────────────────────────────────────────── */
+function openAddModal() {
+  editingId = null;
+  document.getElementById('formModalTitle').textContent = '新增采集任务';
+  clearFormFields();
+  openModal('formModal');
+}
+
+/* ── Edit Modal ─────────────────────────────────────────────── */
+function openEditModal() {
+  const ids = getCheckedIds();
+  if (ids.length !== 1) return;
+  openEditModalFor(ids[0]);
+}
+function openEditModalFor(id) {
+  const row = dataStore.find(r => r.id === id);
+  if (!row) return;
+  editingId = id;
+  document.getElementById('formModalTitle').textContent = '修改采集任务';
+  clearFormErrors();
+  document.getElementById('inp_saleNo').value    = row.saleNo;
+  document.getElementById('inp_keyword').value   = row.keyword;
+  document.getElementById('inp_coreWords').value = row.coreWords;
+  document.getElementById('inp_owner').value     = row.owner;
+  document.getElementById('inp_group').value     = row.group;
+  openModal('formModal');
+}
+
+/* ── Form submit ────────────────────────────────────────────── */
+function submitForm() {
+  if (!validateForm()) return;
+
+  const saleNo    = document.getElementById('inp_saleNo').value.trim();
+  const keyword   = document.getElementById('inp_keyword').value.trim();
+  const coreWords = document.getElementById('inp_coreWords').value.trim();
+  const owner     = document.getElementById('inp_owner').value.trim();
+  const group     = document.getElementById('inp_group').value.trim();
+
+  if (editingId === null) {
+    // Add
+    const currentDate = todayStr();
+    dataStore.push({ id: nextId++, saleNo, keyword, coreWords, owner, group,
+      createdAt: currentDate, status: '待采集', statusDate: currentDate });
+  } else {
+    // Edit
+    const idx = dataStore.findIndex(r => r.id === editingId);
+    if (idx !== -1) Object.assign(dataStore[idx], { saleNo, keyword, coreWords, owner, group });
+  }
+  applyFilter(); // reapply current filter
+  closeModal('formModal');
+}
+
+function validateForm() {
+  let ok = true;
+  const saleNo = document.getElementById('inp_saleNo').value.trim();
+  setError('fg_saleNo', !saleNo);
+  if (!saleNo) ok = false;
+
+  const keyword = document.getElementById('inp_keyword').value.trim();
+  setError('fg_keyword', !keyword);
+  if (!keyword) ok = false;
+
+  const coreWords = document.getElementById('inp_coreWords').value.trim();
+  const cwValid = coreWords.length > 0 && coreWords.split('/').map(s=>s.trim()).some(s => s);
+  setError('fg_coreWords', !cwValid);
+  if (!cwValid) ok = false;
+
+  return ok;
+}
+
+function setError(groupId, hasError) {
+  document.getElementById(groupId).classList.toggle('has-error', hasError);
+}
+function clearFormErrors() {
+  ['fg_saleNo','fg_keyword','fg_coreWords'].forEach(id => setError(id, false));
+}
+function clearFormFields() {
+  clearFormErrors();
+  ['inp_saleNo','inp_keyword','inp_coreWords','inp_owner','inp_group'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+/* ── Auto-fill owner/group by sale number ───────────────────── */
+function autoFill() {
+  const sn = document.getElementById('inp_saleNo').value.trim();
+  const info = SALE_MAP[sn];
+  document.getElementById('inp_owner').value = info ? info.owner : '';
+  document.getElementById('inp_group').value = info ? info.group : '';
+}
+
+/* ── Delete ─────────────────────────────────────────────────── */
+let deleteSingleId = null;
+function openDeleteConfirm() {
+  deleteSingleId = null;
+  const cnt = getCheckedIds().length;
+  document.getElementById('deleteCount').textContent = cnt;
+  openModal('deleteModal');
+}
+function openDeleteSingle(id) {
+  deleteSingleId = id;
+  document.getElementById('deleteCount').textContent = 1;
+  openModal('deleteModal');
+}
+function confirmDelete() {
+  const ids = deleteSingleId !== null ? [deleteSingleId] : getCheckedIds();
+  dataStore = dataStore.filter(r => !ids.includes(r.id));
+  deleteSingleId = null;
+  applyFilter();
+  closeModal('deleteModal');
+}
+
+/* ── Import ─────────────────────────────────────────────────── */
+function openImportModal() {
+  clearImport();
+  openModal('importModal');
+}
+function clearImport() {
+  document.getElementById('importText').value = '';
+  document.getElementById('importFile').value = '';
+  document.getElementById('importResults').innerHTML = '';
+}
+
+function handleFileUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('importText').value = e.target.result; };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// Drag & drop
+(function() {
+  const zone = document.getElementById('dropZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { document.getElementById('importText').value = ev.target.result; };
+    reader.readAsText(file, 'UTF-8');
+  });
+})();
+
+function doImport() {
+  const raw   = document.getElementById('importText').value;
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  const resultsDiv = document.getElementById('importResults');
+  resultsDiv.innerHTML = '';
+  if (!lines.length) {
+    resultsDiv.innerHTML = '<p style="color:#aaa;font-size:12px">没有检测到数据，请粘贴或上传数据后重试。</p>';
+    return;
+  }
+
+  // Skip header row that starts with Chinese characters like '销售编号'
+  const HEADER_RE = /^销售编号/;
+  let rowNum = 0;
+  let imported = 0;
+  const currentDate = todayStr();
+
+  lines.forEach(line => {
+    if (HEADER_RE.test(line.trim())) return; // skip header
+    rowNum++;
+    const cols = line.split(/\t|,/).map(c => c.trim());
+    const [saleNo, keyword, coreWords, ownerCol, groupCol] = cols;
+
+    // Validation
+    if (!saleNo) {
+      resultsDiv.innerHTML += `<div class="row-result fail">行 ${rowNum} 数据导入失败，失败原因：销售编号必填。</div>`;
+      return;
+    }
+    if (!keyword) {
+      resultsDiv.innerHTML += `<div class="row-result fail">行 ${rowNum} 数据导入失败，失败原因：搜索词/OEM号必填。</div>`;
+      return;
+    }
+    if (!coreWords || !coreWords.split('/').map(s=>s.trim()).some(s=>s)) {
+      resultsDiv.innerHTML += `<div class="row-result fail">行 ${rowNum} 数据导入失败，失败原因：核心词必填且至少一个。</div>`;
+      return;
+    }
+
+    // Auto-fill owner/group if not provided or look up from map
+    const mapInfo = SALE_MAP[saleNo] || {};
+    const resolvedOwner = ownerCol || mapInfo.owner || '';
+    const resolvedGroup = groupCol || mapInfo.group || '';
+
+    dataStore.push({
+      id: nextId++, saleNo, keyword, coreWords,
+      owner: resolvedOwner, group: resolvedGroup,
+      createdAt: currentDate, status: '待采集', statusDate: currentDate,
+    });
+    imported++;
+    resultsDiv.innerHTML += `<div class="row-result ok">行 ${rowNum} 数据导入成功。</div>`;
+  });
+
+  if (imported > 0) {
+    applyFilter();
+    resultsDiv.innerHTML += `<div style="margin-top:8px;font-weight:600;color:#1890ff;font-size:12px">✅ 本次共导入 ${imported} 条数据。</div>`;
+  }
+}
+
+/* ── Export ─────────────────────────────────────────────────── */
+function doExport() {
+  const rows = filteredData;
+  if (!rows.length) { alert('当前无数据可导出。'); return; }
+
+  const header = ['销售编号','搜索词/OEM号','核心词','负责人','负责组','创建时间','状态','状态更新日期'];
+  const csvLines = [
+    header.join(','),
+    ...rows.map(r => [
+      csvCell(r.saleNo), csvCell(r.keyword), csvCell(r.coreWords),
+      csvCell(r.owner), csvCell(r.group), csvCell(r.createdAt),
+      csvCell(r.status), csvCell(r.statusDate),
+    ].join(','))
+  ];
+
+  const blob = new Blob(['\uFEFF' + csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `google-search-task-${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function csvCell(v) {
+  const s = String(v ?? '');
+  return (s.includes(',') || s.includes('"') || s.includes('\n')) ? `"${s.replace(/"/g,'""')}"` : s;
+}
+
+/* ── Modal helpers ──────────────────────────────────────────── */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+/* ── Util ───────────────────────────────────────────────────── */
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/* ── Init ───────────────────────────────────────────────────── */
+renderTable();
+</script>
+</body>
+</html>
