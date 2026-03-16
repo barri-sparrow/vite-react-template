@@ -82,6 +82,42 @@ Monitor your workers:
 npx wrangler tail
 ```
 
+## Prototypes
+
+UI prototype pages are located in the `public/prototypes/` directory. They are
+pure-frontend static HTML files — no build step required.
+
+### Google 搜索词采集任务 (Google Search-Term Collection Task)
+
+**File:** `public/prototypes/google-search-task.html`
+
+**Features demonstrated:**
+- List view with all task fields (销售编号, 搜索词/OEM号, 核心词, 负责人, 负责组, 创建时间, 状态, 状态更新日期)
+- Filter bar (编号 exact/batch · 搜索词 fuzzy/batch · 创建时间 date range · 负责人 · 负责组)
+- Add / Edit modal with validation and auto-fill of 负责人/负责组 from sales number
+- Batch delete with confirmation dialog
+- Import (paste or file upload) with per-row success/failure feedback
+- Export filtered data as UTF-8 CSV
+
+**Opening the prototype:**
+
+Option A — via the Vite dev server (recommended):
+
+```bash
+npm run dev
+```
+
+Then open: <http://localhost:5173/prototypes/google-search-task.html>
+
+Option B — open the file directly in a browser:
+
+```
+public/prototypes/google-search-task.html
+```
+
+> Double-click the file in your file explorer, or drag it into a browser tab.
+> All interactions work without a server because the page is fully self-contained.
+
 ## Additional Resources
 
 - [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
